@@ -6,6 +6,7 @@
 #ifndef SPDLOG_COMMON_H_
 #define SPDLOG_COMMON_H_
 
+#include <atomic>
 #include <initializer_list>
 #include <memory>
 
@@ -45,6 +46,7 @@ using SinksInitList = std::initializer_list<SinkPtr>;
 using level_t = details::null_atomic_int;
 #else
 using level_t = std::atomic_int;
+#endif
 
 }  // namespace spdlog
 
