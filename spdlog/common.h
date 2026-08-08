@@ -7,6 +7,7 @@
 #define SPDLOG_COMMON_H_
 
 #include <atomic>
+#include <chrono>
 #include <initializer_list>
 #include <memory>
 
@@ -41,6 +42,8 @@ class Formatter;
 using FormatterPtr = std::shared_ptr<spdlog::Formatter>;
 using SinkPtr = std::shared_ptr<spdlog::sinks::Sink>;
 using SinksInitList = std::initializer_list<SinkPtr>;
+
+using log_clock = std::chrono::system_clock;
 
 #if defined(SPDLOG_NO_ATOMIC_LEVELS)
 using level_t = details::null_atomic_int;
