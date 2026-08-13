@@ -6,6 +6,8 @@
 #ifndef SPDLOG_FORMATTER_H_
 #define SPDLOG_FORMATTER_H_
 
+#include <spdlog/details/log_msg.h>
+
 #include <string>
 
 namespace spdlog {
@@ -13,7 +15,7 @@ namespace spdlog {
 class Formatter {
  public:
   virtual ~Formatter() {}
-  virtual void Format() = 0;
+  virtual void Format(details::LogMsg& msg) = 0;
 };
 
 class PatternFormatter : public Formatter {
@@ -23,7 +25,7 @@ class PatternFormatter : public Formatter {
   PatternFormatter(const PatternFormatter&) = delete;
   PatternFormatter& opeartor = (const PatternFormatter&) = delete;
 
-  void Format() override;
+  void Format(details::LogMsg& msg) override;
 
  private:
   void CompilePattern(const std::string& pattern);

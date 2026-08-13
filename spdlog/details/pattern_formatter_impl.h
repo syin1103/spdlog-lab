@@ -10,7 +10,7 @@
 
 inline spdlog::PatternFormatter::PatternFormatter(const std::string& pattern) {}
 
-inline void spdlog::PatternFormatter::Format() {}
+inline void spdlog::PatternFormatter::Format(details::LogMsg& msg) {}
 
 inline void spdlog::PatternFormatter::CompilePattern(
     const std::string& pattern) {}

@@ -8,6 +8,7 @@
 
 #include <fmt/format.h>
 #include <spdlog/common.h>
+#include <spdlog/details/os.h>
 
 #include <string>
 
@@ -19,11 +20,11 @@ struct LogMsg {
   LogMsg(const std::string* name, level::level_enum lvl)
       : logger_name(name), level(lvl) {
 #ifndef SPDLOG_NO_DATETIME
-    // time = os::now();
+    time = os::now();
 #endif
 
 #ifndef SPDLOG_NO_THREAD_ID
-    // thread_id = os::thread_id();
+    thread_id = os::thread_id();
 #endif
   }
 
