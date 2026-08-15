@@ -8,8 +8,10 @@
 
 #include <atomic>
 #include <chrono>
+#include <exception>
 #include <initializer_list>
 #include <memory>
+#include <string>
 
 namespace spdlog {
 
@@ -50,6 +52,24 @@ using level_t = details::null_atomic_int;
 #else
 using level_t = std::atomic_int;
 #endif
+
+namespace details {
+namespace os {
+std::string errno_str(int err_num);
+}
+}  // namespace details
+
+class spdlog_ex : public std::exception {
+ public:
+  spdlog_ex(const std::string& msg) : msg_(msg) {}
+  spdlog_ex(const std::string& msg, int last_errno) {
+    msg_ = msg + ": " + details::os::errno_str(last_errno);
+  }
+  const char* what() const noexcept override { return msg_.c_str(); }
+
+ private:
+  std::string msg_;
+};
 
 }  // namespace spdlog
 

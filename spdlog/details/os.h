@@ -61,19 +61,39 @@ inline spdlog::log_clock::time_point now() {
 }
 
 inline size_t thread_id() {
-  inline size_t thread_id() {
 #ifdef _WIN32
-    return static_cast<size_t>(::GetCurrentThreadId());
+  return static_cast<size_t>(::GetCurrentThreadId());
 #elif __linux__
 #if defined(__ANDROID__) && defined(__ANDROID_API__) && (__ANDROID_API__ < 21)
 #define SYS_gettid __NR_gettid
 #endif
-    return static_cast<size_t>(syscall(SYS_gettid));
+  return static_cast<size_t>(syscall(SYS_gettid));
 #else  // Default to standard C++11 (OSX and other Unix)
-    return static_cast<size_t>(
-        std::hash<std::thread::id>()(std::this_thread::get_id()));
+  return static_cast<size_t>(
+      std::hash<std::thread::id>()(std::this_thread::get_id()));
 #endif
-  }
+}
+
+inline std::string errno_str(int err_num) {
+  char buf[256];
+  constexpr auto buf_size = sizeof(buf);
+
+#ifdef _WIN32
+  if (strerror_s(buf, buf_size, err_num) == 0)
+    return std::string(buf);
+  else
+    return "Unkown error";
+
+#elif defined(__APPLE__) || \
+    ((_POSIX_C_SOURCE >= 200112L) && !_GNU_SOURCE)  // posix version
+  if (strerror_r(err_num, buf, buf_size) == 0)
+    return std::string(buf);
+  else
+    return "Unkown error";
+
+#else
+  return std::string(strerror_r(err_num, buf, buf_size));
+#endif
 }
 
 }  // namespace os

@@ -23,7 +23,7 @@ class PatternFormatter : public Formatter {
   explicit PatternFormatter(const std::string& pattern);
 
   PatternFormatter(const PatternFormatter&) = delete;
-  PatternFormatter& opeartor = (const PatternFormatter&) = delete;
+  PatternFormatter& operator=(const PatternFormatter&) = delete;
 
   void Format(details::LogMsg& msg) override;
 

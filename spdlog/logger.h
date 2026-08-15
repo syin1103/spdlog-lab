@@ -7,6 +7,7 @@
 #define SPDLOG_LOGGER_H_
 
 #include <spdlog/common.h>
+#include <spdlog/details/log_msg.h>
 
 #include <string>
 #include <vector>
@@ -63,6 +64,10 @@ class Logger {
   virtual void Flush();
 
  protected:
+  virtual void SinkItInter(details::LogMsg& msg);
+  virtual void SetPatternInter(const std::string& patter);
+  virtual void SetFormatterInter(FormatterPtr formatter);
+
   const std::string name_;
   std::vector<SinkPtr> sinks_;
   FormatterPtr formatter_;
