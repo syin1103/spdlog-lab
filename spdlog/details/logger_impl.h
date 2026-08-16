@@ -9,6 +9,7 @@
 #include <spdlog/formatter.h>
 #include <spdlog/logger.h>
 
+#include <iterator>
 #include <memory>
 
 inline spdlog::Logger::Logger(const std::string& name,
@@ -39,7 +40,8 @@ inline void spdlog::Logger::Log(level::level_enum lvl, const char* fmt,
   }
   details::LogMsg log_msg(&name_, lvl);
   try {
-    fmt::format_to(log_msg.raw, fmt, args...);
+    // fmt::format_to(log_msg.raw, fmt, args...);
+    fmt::format_to(std::back_inserter(log_msg.raw), fmt, args...);
   } catch (fmt::format_error& ex) {
     throw spdlog::spdlog_ex(std::string("format error in \"") + fmt +
                             "/: " + ex.what());
@@ -48,25 +50,86 @@ inline void spdlog::Logger::Log(level::level_enum lvl, const char* fmt,
 }
 
 template <typename... Args>
-inline void spdlog::Logger::Log(level::level_enum lvl, const char* msg) {}
+inline void spdlog::Logger::Log(level::level_enum lvl, const char* msg) {
+  if (!ShouldLog(lvl)) {
+    return;
+  }
+  details::LogMsg log_msg(&name_, lvl);
+  // fmt::format_to(log_msg.raw, msg);
+  fmt::format_to(std::back_inserter(log_msg.raw), "{}", msg);
+  SinkItInter(log_msg);
+}
 
 template <typename... Args>
-inline void spdlog::Logger::Trace(const char* fmt, const Args&... args) {}
+inline void spdlog::Logger::Trace(const char* fmt, const Args&... args) {
+  Log(level::trace, fmt, args...);
+}
 
 template <typename... Args>
-inline void spdlog::Logger::Debug(const char* fmt, const Args&... args) {}
+inline void spdlog::Logger::Debug(const char* fmt, const Args&... args) {
+  Log(level::debug, fmt, args...);
+}
 
 template <typename... Args>
-inline void spdlog::Logger::Info(const char* fmt, const Args&... args) {}
+inline void spdlog::Logger::Info(const char* fmt, const Args&... args) {
+  Log(level::info, fmt, args...);
+}
 
 template <typename... Args>
-inline void spdlog::Logger::Warn(const char* fmt, const Args&... args) {}
+inline void spdlog::Logger::Warn(const char* fmt, const Args&... args) {
+  Log(level::warn, fmt, args...);
+}
 
 template <typename... Args>
-inline void spdlog::Logger::Error(const char* fmt, const Args&... args) {}
+inline void spdlog::Logger::Error(const char* fmt, const Args&... args) {
+  Log(level::err, fmt, args...);
+}
 
 template <typename... Args>
-inline void spdlog::Logger::Critical(const char* fmt, const Args&... args) {}
+inline void spdlog::Logger::Critical(const char* fmt, const Args&... args) {
+  Log(level::critical, fmt, args...);
+}
+
+template <typename T>
+inline void spdlog::Logger::Log(level::level_enum lvl, const T& msg) {
+  if (!ShouldLog(lvl)) {
+    return;
+  }
+  details::LogMsg log_msg(&name_, lvl);
+  // fmt::format_to(log_msg.raw, msg);
+  fmt::format_to(std::back_inserter(log_msg.raw), "{}", msg);
+  SinkItInter(log_msg);
+}
+
+template <typename T>
+inline void spdlog::Logger::Trace(const T& msg) {
+  Log(level::trace, msg);
+}
+
+template <typename T>
+inline void spdlog::Logger::Debug(const T& msg) {
+  Log(level::debug, msg);
+}
+
+template <typename T>
+inline void spdlog::Logger::Info(const T& msg) {
+  Log(level::info, msg);
+}
+
+template <typename T>
+inline void spdlog::Logger::Warn(const T& msg) {
+  Log(level::warn, msg);
+}
+
+template <typename T>
+inline void spdlog::Logger::Error(const T& msg) {
+  Log(level::err, msg);
+}
+
+template <typename T>
+inline void spdlog::Logger::Critical(const T& msg) {
+  Log(level::critical, msg);
+}
 
 inline bool spdlog::Logger::ShouldLog(level::level_enum msg_level) const {
   return msg_level >= level_.load(std::memory_order_relaxed);

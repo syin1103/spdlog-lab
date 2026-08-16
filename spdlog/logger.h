@@ -50,6 +50,27 @@ class Logger {
   template <typename... Args>
   void Critical(const char* fmt, const Args&... args);
 
+  template <typename T>
+  void Log(level::level_enum lvl, const T& msg);
+
+  template <typename T>
+  void Trace(const T& msg);
+
+  template <typename T>
+  void Debug(const T& msg);
+
+  template <typename T>
+  void Info(const T& msg);
+
+  template <typename T>
+  void Warn(const T& msg);
+
+  template <typename T>
+  void Error(const T& msg);
+
+  template <typename T>
+  void Critical(const T& msg);
+
   bool ShouldLog(level::level_enum msg_level) const;
 
   void set_level(level::level_enum log_level);
