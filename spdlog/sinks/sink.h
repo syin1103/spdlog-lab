@@ -6,10 +6,17 @@
 #ifndef SPDLOG_SINKS_SINK_H_
 #define SPDLOG_SINKS_SINK_H_
 
+#include <spdlog/details/log_msg.h>
+
 namespace spdlog {
 namespace sinks {
 
-class Sink {};
+class Sink {
+ public:
+  virtual ~Sink() {}
+  virtual void Log(const details::LogMsg& msg) = 0;
+  virtual void Flush() = 0;
+};
 
 }  // namespace sinks
 

@@ -8,6 +8,7 @@
 
 #include <spdlog/formatter.h>
 #include <spdlog/logger.h>
+#include <spdlog/sinks/sink.h>
 
 #include <iterator>
 #include <memory>
@@ -158,9 +159,22 @@ inline void spdlog::Logger::FlushOn(spdlog::level::level_enum log_level) {
   flush_level_.store(log_level);
 }
 
-inline void spdlog::Logger::Flush() {}
+inline void spdlog::Logger::Flush() {
+  for (auto& sink : sinks_) {
+    sink->Flush();
+  }
+}
 
-inline void spdlog::Logger::SinkItInter(details::LogMsg& msg) {}
+inline void spdlog::Logger::SinkItInter(details::LogMsg& msg) {
+  formatter_->Format(msg);
+  for (auto& sink : sinks_) {
+    sink->Log(msg);
+  }
+  const auto flush_level = flush_level_.load(std::memory_order_relaxed);
+  if (msg.level >= flush_level) {
+    Flush();
+  }
+}
 
 inline void spdlog::Logger::SetPatternInter(const std::string& pattern) {
   formatter_ = std::make_shared<PatternFormatter>(pattern);
