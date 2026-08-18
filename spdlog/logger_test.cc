@@ -8,4 +8,6 @@
 #include <fmt/format.h>
 #include <gtest/gtest.h>
 
+#include "async_logger.h"
+
 TEST(LoggerTest, SimpleTest) { fmt::print("Hello {}\n", "world"); }

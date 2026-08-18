@@ -14,4 +14,6 @@ class AsyncLogger : public Logger {};
 
 }  // namespace spdlog
 
+#include <spdlog/details/async_logger_impl.h>
+
 #endif  // SPDLOG_ASYNC_LOGGER_H_
