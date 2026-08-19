@@ -36,10 +36,11 @@ class AsyncLogHelper {
                      std::chrono::milliseconds::zero(),
                  const std::function<void()>& worker_teardown_cb = nullptr) {}
 
-  ~AsyncLogHelper();
+  ~AsyncLogHelper() {}
 
   void Log(const details::LogMsg& msg) {}
   void Flush() {}
+  void set_formatter(FormatterPtr formatter) {}
 };
 
 }  // namespace details
