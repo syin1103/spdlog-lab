@@ -79,7 +79,10 @@ class AsyncLogHelper {
   };
 
  public:
+  using item_type = async_msg;
+  using q_type = details::mpmc_bounded_queue<item_type>;
   using clock = std::chrono::steady_clock;
+
   AsyncLogHelper(FormatterPtr formatter, const std::vector<SinkPtr>& sinks,
                  size_t queue_size,
                  const async_overflow_policy overflow_policy =
@@ -87,13 +90,37 @@ class AsyncLogHelper {
                  const std::function<void()>& worker_warmup_cb = nullptr,
                  const std::chrono::milliseconds& flush_interval_ms =
                      std::chrono::milliseconds::zero(),
-                 const std::function<void()>& worker_teardown_cb = nullptr) {}
+                 const std::function<void()>& worker_teardown_cb = nullptr);
 
   ~AsyncLogHelper() {}
 
   void Log(const details::LogMsg& msg) {}
   void Flush() {}
   void set_formatter(FormatterPtr formatter) {}
+
+ private:
+  void PushMsg(async_msg&& new_msg);
+  void ThrowIfBadWorker();
+  void WorkerLoop();
+  bool ProcessNextMsg(log_clock::time_point& last_pop,
+                      log_clock::time_point& last_flush);
+
+  static void SleepOrYield(const log_clock::time_point& now,
+                           const log_clock::time_point& last_op_time);
+
+  FormatterPtr formatter_;
+  std::vector<std::shared_ptr<sinks::Sink>> sinks_;
+  q_type q_;
+
+  bool flush_requested_;
+  bool terminate_requested_;
+
+  std::shared_ptr<spdlog_ex> last_workerthread_ex_;
+  const async_overflow_policy overflow_policy_;
+  const std::function<void()> worker_warmup_cb_;
+  const std::function<void()> worker_teardown_cb_;
+  const std::chrono::milliseconds flush_interval_ms_;
+  std::thread worker_thread_;
 };
 
 }  // namespace details
