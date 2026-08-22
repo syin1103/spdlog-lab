@@ -92,11 +92,11 @@ class AsyncLogHelper {
                      std::chrono::milliseconds::zero(),
                  const std::function<void()>& worker_teardown_cb = nullptr);
 
-  ~AsyncLogHelper() {}
+  ~AsyncLogHelper();
 
-  void Log(const details::LogMsg& msg) {}
-  void Flush() {}
-  void set_formatter(FormatterPtr formatter) {}
+  void Log(const details::LogMsg& msg);
+  void Flush();
+  void set_formatter(FormatterPtr formatter);
 
  private:
   void PushMsg(async_msg&& new_msg);
@@ -104,6 +104,8 @@ class AsyncLogHelper {
   void WorkerLoop();
   bool ProcessNextMsg(log_clock::time_point& last_pop,
                       log_clock::time_point& last_flush);
+  void HandleFlushInterval(log_clock::time_point& now,
+                           log_clock::time_point& last_flush);
 
   static void SleepOrYield(const log_clock::time_point& now,
                            const log_clock::time_point& last_op_time);
@@ -126,5 +128,74 @@ class AsyncLogHelper {
 }  // namespace details
 
 }  // namespace spdlog
+
+inline spdlog::details::AsyncLogHelper::AsyncLogHelper(
+    FormatterPtr formatter, const std::vector<SinkPtr>& sinks,
+    size_t queue_size, const async_overflow_policy overflow_policy,
+    const std::function<void()>& worker_warmup_cb,
+    const std::chrono::milliseconds& flush_interval_ms,
+    const std::function<void()>& worker_teardown_cb)
+    : formatter_(formatter),
+      sinks_(sinks),
+      q_(queue_size),
+      flush_requested_(false),
+      terminate_requested_(false),
+      overflow_policy_(overflow_policy),
+      worker_warmup_cb_(worker_warmup_cb),
+      flush_interval_ms_(flush_interval_ms),
+      worker_teardown_cb_(worker_teardown_cb),
+      worker_thread_(&AsyncLogHelper::WorkerLoop, this) {}
+
+inline spdlog::details::AsyncLogHelper::~AsyncLogHelper() {
+  try {
+    PushMsg(async_msg(async_msg_type::terminate));
+    worker_thread_.join();
+  } catch (...) {
+    // don't crash in destructor
+  }
+}
+
+inline void spdlog::details::AsyncLogHelper::Log(const details::LogMsg& msg) {
+  PushMsg(async_msg(msg));
+}
+
+inline void spdlog::details::AsyncLogHelper::PushMsg(
+    details::AsyncLogHelper::async_msg&& new_msg) {
+  ThrowIfBadWorker();
+  if (!q_.enqueue(std::move(new_msg)) &&
+      overflow_policy_ != async_overflow_policy::discard_log_msg) {
+    auto last_op_time = details::os::now();
+    auto now = last_op_time;
+    do {
+      now = details::os::now();
+      SleepOrYield(now, last_op_time);
+    } while (!q_.enqueue(std::move(new_msg)));
+  }
+}
+
+inline void spdlog::details::AsyncLogHelper::Flush() {
+  PushMsg(async_msg(async_msg_type::flush));
+}
+
+inline void spdlog::details::AsyncLogHelper::WorkerLoop() {}
+
+inline bool spdlog::details::AsyncLogHelper::ProcessNextMsg(
+    log_clock::time_point& last_pop, log_clock::time_point& last_flush) {
+  return true;
+}
+
+inline void spdlog::details::AsyncLogHelper::HandleFlushInterval(
+    log_clock::time_point& now, log_clock::time_point& last_flush) {}
+
+inline void spdlog::details::AsyncLogHelper::set_formatter(
+    FormatterPtr formatter) {
+  formatter_ = formatter;
+}
+
+inline void spdlog::details::AsyncLogHelper::SleepOrYield(
+    const spdlog::log_clock::time_point& now,
+    const spdlog::log_clock::time_point& last_op_time) {}
+
+inline void spdlog::details::AsyncLogHelper::ThrowIfBadWorker() {}
 
 #endif  // SPDLOG_DETAILS_ASYNC_LOG_HELPER_H_
