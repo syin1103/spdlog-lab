@@ -177,10 +177,55 @@ inline void spdlog::details::AsyncLogHelper::Flush() {
   PushMsg(async_msg(async_msg_type::flush));
 }
 
-inline void spdlog::details::AsyncLogHelper::WorkerLoop() {}
+inline void spdlog::details::AsyncLogHelper::WorkerLoop() {
+  try {
+    if (worker_warmup_cb_) {
+      worker_warmup_cb_();
+    }
+    auto last_pop = details::os::now();
+    auto last_flush = last_pop;
+    while (ProcessNextMsg(last_pop, last_flush));
+    if (worker_teardown_cb_) {
+      worker_teardown_cb_();
+    }
+  } catch (const std::exception& ex) {
+    last_workerthread_ex_ = std::make_shared<spdlog_ex>(
+        std::string("async_logger worker thread exception: ") + ex.what());
+  } catch (...) {
+    last_workerthread_ex_ =
+        std::make_shared<spdlog_ex>("async_logger worker thread exception");
+  }
+}
 
 inline bool spdlog::details::AsyncLogHelper::ProcessNextMsg(
     log_clock::time_point& last_pop, log_clock::time_point& last_flush) {
+  async_msg incoming_async_msg;
+  if (q_.dequeue(incoming_async_msg)) {
+    last_pop = details::os::now();
+    switch (incoming_async_msg.msg_type) {
+      case async_msg_type::flush:
+        flush_requested_ = true;
+        break;
+      case async_msg_type::terminate:
+        flush_requested_ = true;
+        terminate_requested_ = true;
+        break;
+      default:
+        log_msg incoming_log_msg;
+        incoming_async_msg.fill_log_msg(incoming_log_msg);
+        formatter_->Format(incoming_log_msg);
+        for (auto& s : sinks_) {
+          s->Log(incoming_log_msg);
+        }
+    }
+    return true;
+  } else {
+    auto now = details::os::now();
+    HandleFlushInterval(now, last_flush);
+    SleepOrYield(now, last_pop);
+    return !terminate_requested_;
+  }
+
   return true;
 }
 
@@ -196,6 +241,11 @@ inline void spdlog::details::AsyncLogHelper::SleepOrYield(
     const spdlog::log_clock::time_point& now,
     const spdlog::log_clock::time_point& last_op_time) {}
 
-inline void spdlog::details::AsyncLogHelper::ThrowIfBadWorker() {}
+inline void spdlog::details::AsyncLogHelper::ThrowIfBadWorker() {
+  if (last_workerthread_ex_) {
+    auto ex = std::move(last_workerthread_ex_);
+    throw *ex;
+  }
+}
 
 #endif  // SPDLOG_DETAILS_ASYNC_LOG_HELPER_H_
