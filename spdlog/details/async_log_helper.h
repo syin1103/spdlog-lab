@@ -211,7 +211,7 @@ inline bool spdlog::details::AsyncLogHelper::ProcessNextMsg(
         terminate_requested_ = true;
         break;
       default:
-        log_msg incoming_log_msg;
+        LogMsg incoming_log_msg;
         incoming_async_msg.fill_log_msg(incoming_log_msg);
         formatter_->Format(incoming_log_msg);
         for (auto& s : sinks_) {
@@ -230,7 +230,19 @@ inline bool spdlog::details::AsyncLogHelper::ProcessNextMsg(
 }
 
 inline void spdlog::details::AsyncLogHelper::HandleFlushInterval(
-    log_clock::time_point& now, log_clock::time_point& last_flush) {}
+    log_clock::time_point& now, log_clock::time_point& last_flush) {
+  auto should_flush =
+      flush_requested_ ||
+      (flush_interval_ms_ != std::chrono::milliseconds::zero() &&
+       now - last_flush >= flush_interval_ms_);
+  if (should_flush) {
+    for (auto& s : sinks_) {
+      s->Flush();
+    }
+    now = last_flush = details::os::now();
+    flush_requested_ = false;
+  }
+}
 
 inline void spdlog::details::AsyncLogHelper::set_formatter(
     FormatterPtr formatter) {
@@ -239,7 +251,27 @@ inline void spdlog::details::AsyncLogHelper::set_formatter(
 
 inline void spdlog::details::AsyncLogHelper::SleepOrYield(
     const spdlog::log_clock::time_point& now,
-    const spdlog::log_clock::time_point& last_op_time) {}
+    const spdlog::log_clock::time_point& last_op_time) {
+  using namespace std::this_thread;
+  using std::chrono::microseconds;
+  using std::chrono::milliseconds;
+
+  auto time_since_op = now - last_op_time;
+
+  if (time_since_op <= microseconds(50)) {
+    return;
+  }
+
+  if (time_since_op <= microseconds(100)) {
+    return yield();
+  }
+
+  if (time_since_op <= milliseconds(200)) {
+    return sleep_for(milliseconds(20));
+  }
+
+  return sleep_for(milliseconds(200));
+}
 
 inline void spdlog::details::AsyncLogHelper::ThrowIfBadWorker() {
   if (last_workerthread_ex_) {
