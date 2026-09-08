@@ -9,5 +9,6 @@
 #include <gtest/gtest.h>
 
 #include "async_logger.h"
+#include "spdlog/sinks/dist_sink.h"
 
 TEST(LoggerTest, SimpleTest) { fmt::print("Hello {}\n", "world"); }
