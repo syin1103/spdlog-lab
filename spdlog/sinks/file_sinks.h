@@ -22,8 +22,28 @@
 namespace spdlog {
 namespace sinks {
 
+/*
+ * Trivial file sink with single file as target
+ */
 template <typename Mutex>
-class SimpleFileSink : public BaseSink<Mutex> {};
+class SimpleFileSink : public BaseSink<Mutex> {
+ public:
+  explicit SimpleFileSink(const filename_t& filename, bool force_flush = false)
+      : file_helper_(force_flush) {
+    file_helper_.Open(filename);
+  }
+
+  void Flush() override { file_helper_.Flush(); }
+
+ protected:
+  void SinkIt(const details::LogMsg& msg) override { file_helper_.Write(msg); }
+
+ private:
+  details::FileHelper file_helper_;
+};
+
+typedef SimpleFileSink<std::mutex> SimpleFileSinkMt;
+typedef SimpleFileSink<details::null_mutex> SimpleFileSinkSt;
 
 template <typename Mutex>
 class RotatingFileSink : public BaseSink<Mutex> {};

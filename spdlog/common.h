@@ -71,6 +71,15 @@ class spdlog_ex : public std::exception {
   std::string msg_;
 };
 
+//
+// wchar support for windows file names (SPDLOG_WCHAR_FILENAMES must be defined)
+//
+#if defined(_WIN32) && defined(SPDLOG_WCHAR_FILENAMES)
+using filename_t = std::wstring;
+#else
+using filename_t = std::string;
+#endif
+
 }  // namespace spdlog
 
 #endif  // SPDLOG_COMMON_H_

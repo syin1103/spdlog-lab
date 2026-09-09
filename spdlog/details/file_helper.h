@@ -18,7 +18,36 @@
 namespace spdlog {
 namespace details {
 
-class FileHelper {};
+class FileHelper {
+ public:
+  explicit FileHelper(bool force_flush) {}
+
+  FileHelper(const FileHelper&) = delete;
+  FileHelper& operator=(const FileHelper&) = delete;
+
+  ~FileHelper() {}
+
+  void Open(const filename_t& filename, bool truncate = false) {}
+
+  void Reopen(bool truncate) {}
+
+  void Flush() {}
+
+  void Close() {}
+
+  void Write(const LogMsg& msg) {}
+
+  size_t Size() { return 0; }
+
+  const filename_t& filename() const { return filename_; }
+
+  static bool FileExists(const filename_t& name) { return false; }
+
+ private:
+  FILE* fd_;
+  filename_t filename_;
+  bool force_flush_;
+};
 
 }  // namespace details
 }  // namespace spdlog
