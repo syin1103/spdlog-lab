@@ -46,7 +46,83 @@ typedef SimpleFileSink<std::mutex> SimpleFileSinkMt;
 typedef SimpleFileSink<details::null_mutex> SimpleFileSinkSt;
 
 template <typename Mutex>
-class RotatingFileSink : public BaseSink<Mutex> {};
+class RotatingFileSink : public BaseSink<Mutex> {
+ public:
+  RotatingFileSink(const filename_t& base_filename, const filename_t& extension,
+                   std::size_t max_size, std::size_t max_files,
+                   bool force_flush = false)
+      : base_filename_(base_filename),
+        extension_(extension),
+        max_size_(max_size),
+        max_files_(max_files),
+        current_size_(0),
+        file_helper_(force_flush) {}
+
+  void Flush() override { file_helper_.Flush(); }
+
+ protected:
+  void SinkIt(const details::LogMsg& msg) override {
+    current_size_ += msg.formatted.size();
+    if (current_size_ > max_size_) {
+      Rotate();
+      current_size_ = msg.formatted.size();
+    }
+    file_helper_.Write(msg);
+  }
+
+ private:
+  static std::string calc_filename(const std::string& filename,
+                                   std::size_t index,
+                                   const std::string& extension) {
+    if (index) {
+      return fmt::format("{}.{}.{}", filename, index, extension);
+    } else {
+      return fmt::format("{}.{}", filename, extension);
+    }
+  }
+
+  // Rotate files:
+  // log.txt -> log.1.txt
+  // log.1.txt -> log2.txt
+  // log.2.txt -> log3.txt
+  // log.3.txt -> delete
+
+  void Rotate() {
+    using details::os::filename_to_str;
+    file_helper_.Close();
+    for (auto i = max_files_; i > 0; i--) {
+      filename_t src = calc_filename(base_filename_, i - 1, extension_);
+      filename_t target = calc_filename(base_filename_, i, extension_);
+
+      if (details::FileHelper::FileExists(target)) {
+        if (details::os::remove(target) != 0) {
+          throw spdlog_ex(
+              "rotating_file_sink: failed removeing " + filename_to_str(target),
+              errno);
+        }
+      }
+
+      if (details::FileHelper::FileExists(src) &&
+          details::os::rename(src, target)) {
+        throw spdlog_ex("rotating_file_sink: failed renaming " +
+                            filename_to_str(src) + "to" +
+                            filename_to_str(target),
+                        errno);
+      }
+    }
+    file_helper_.Reopen(true);
+  }
+
+  filename_t base_filename_;
+  filename_t extension_;
+  std::size_t max_size_;
+  std::size_t max_files_;
+  std::size_t current_size_;
+  details::FileHelper file_helper_;
+};
+
+typedef RotatingFileSink<std::mutex> RotatingFileSinkMt;
+typedef RotatingFileSink<details::null_mutex> RotatingFileSinkSt;
 
 template <typename Mutex, typename FileNameCalc>
 class DailyFileSink : public BaseSink<Mutex> {};

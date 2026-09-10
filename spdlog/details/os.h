@@ -96,6 +96,36 @@ inline std::string errno_str(int err_num) {
 #endif
 }
 
+// wchar support for windows file names (SPDLOG_WCHAR_FILENAMES must be defined)
+#if defined(_WIN32) && defined(SPDLOG_WCHAR_FILENAMES)
+#define SPDLOG_FILENAME_T(s) L##s
+inline std::string filename_to_str(const filename_t& filename) {
+  std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> c;
+  return c.to_bytes(filename);
+}
+#else
+#define SPDLOG_FILENAME_T(s) s
+inline std::string filename_to_str(const filename_t& filename) {
+  return filename;
+}
+#endif
+
+inline int remove(const filename_t& filename) {
+#if defined(_WIN32) && defined(SPDLOG_WCHAR_FILENAMES)
+  return _wremove(filename.c_str());
+#else
+  return std::remove(filename.c_str());
+#endif
+}
+
+inline int rename(const filename_t& filename1, const filename_t& filename2) {
+#if defined(_WIN32) && defined(SPDLOG_WCHAR_FILENAMES)
+  return _wrename(filename1.c_str(), filename2.c_str());
+#else
+  return std::rename(filename1.c_str(), filename2.c_str());
+#endif
+}
+
 }  // namespace os
 
 }  // namespace details
