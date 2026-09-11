@@ -124,11 +124,27 @@ class RotatingFileSink : public BaseSink<Mutex> {
 typedef RotatingFileSink<std::mutex> RotatingFileSinkMt;
 typedef RotatingFileSink<details::null_mutex> RotatingFileSinkSt;
 
-template <typename Mutex, typename FileNameCalc>
+/*
+ * Default generator of daily log file names.
+ */
+struct DefaultDailyFileNameCalculator {};
+
+/*
+ * Generator of daily log file names in format basename.YYYY-MM-DD.extension
+ */
+struct DateOnlyDailyFileNameCalculator {};
+
+/*
+ * Rotating file sink based on date. rotates at midnight
+ */
+template <typename Mutex,
+          typename FileNameCalc = DefaultDailyFileNameCalculator>
 class DailyFileSink : public BaseSink<Mutex> {};
 
-}  // namespace sinks
+typedef DailyFileSink<std::mutex> DailyFileSinkMt;
+typedef DailyFileSink<details::null_mutex> DailyFileSinkSt;
 
+}  // namespace sinks
 }  // namespace spdlog
 
 #endif  // SPDLOG_SINKS_FILE_SINKS_H_
