@@ -157,7 +157,60 @@ struct DateOnlyDailyFileNameCalculator {
  */
 template <typename Mutex,
           typename FileNameCalc = DefaultDailyFileNameCalculator>
-class DailyFileSink : public BaseSink<Mutex> {};
+class DailyFileSink : public BaseSink<Mutex> {
+ public:
+  DailyFileSink(const filename_t& base_filename, const filename_t& extension,
+                int rotation_hour, int rotation_minute,
+                bool force_flush = false)
+      : base_filename_(base_filename),
+        extension_(extension),
+        rotation_h_(rotation_hour),
+        rotation_m_(rotation_minute),
+        file_helper_(force_flush) {
+    if (rotation_hour < 0 || rotation_hour > 23 || rotation_minute < 0 ||
+        rotation_minute > 59) {
+      throw spdlog_ex("daily file sink: invalid rotaion time in ctor");
+    }
+    rotation_tp_ = NextRotationTp();
+    file_helper_.Open(FileNameCalc::CalcFileName(base_filename_, extension_));
+  }
+
+  void Flush() override { file_helper_.Flush(); }
+
+ protected:
+  void SinkIt(const details::LogMsg& msg) override {
+    if (std::chrono::system_clock::now() >= rotation_tp_) {
+      file_helper_.Open(FileNameCalc::CalcFileName(base_filename_, extension_));
+      rotation_tp_ = NextRotationTp();
+    }
+    file_helper_.Write(msg);
+  }
+
+ private:
+  std::chrono::system_clock::time_point NextRotationTp() {
+    auto now = std::chrono::system_clock::now();
+    time_t tnow = std::chrono::system_clock::to_time_t(now);
+    tm date = spdlog::details::os::localtime(tnow);
+    date.tm_hour = rotation_h_;
+    date.tm_min = rotation_m_;
+    date.tm_sec = 0;
+    auto rotation_time =
+        std::chrono::system_clock::from_time_t(std::mktime(&date));
+    if (rotation_time > now) {
+      return rotation_time;
+    } else {
+      return std::chrono::system_clock::time_point(rotation_time +
+                                                   std::chrono::hours(24));
+    }
+  }
+
+  filename_t base_filename_;
+  filename_t extension_;
+  int rotation_h_;
+  int rotation_m_;
+  std::chrono::system_clock::time_point rotation_tp_;
+  details::FileHelper file_helper_;
+};
 
 typedef DailyFileSink<std::mutex> DailyFileSinkMt;
 typedef DailyFileSink<details::null_mutex> DailyFileSinkSt;
