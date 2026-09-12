@@ -60,6 +60,22 @@ inline spdlog::log_clock::time_point now() {
 #endif
 }
 
+inline std::tm localtime(const std::time_t& time_tt) {
+#ifdef _WIN32
+  std::tm tm;
+  localtime_s(&tm, &time_tt);
+#else
+  std::tm tm;
+  localtime_r(&time_tt, &tm);
+#endif
+  return tm;
+}
+
+inline std::tm localtime() {
+  std::time_t now_t = time(nullptr);
+  return localtime(now_t);
+}
+
 inline size_t thread_id() {
 #ifdef _WIN32
   return static_cast<size_t>(::GetCurrentThreadId());
