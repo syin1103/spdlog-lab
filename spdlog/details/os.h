@@ -142,6 +142,66 @@ inline int rename(const filename_t& filename1, const filename_t& filename2) {
 #endif
 }
 
+// fopen_s on non windows for writing
+inline int fopen_s(FILE** fp, const filename_t& filename,
+                   const filename_t& mode) {
+#ifdef _WIN32
+#ifdef SPDLOG_WCHAR_FILENAMES
+  *fp = _wfsopen((filename.c_str()), mode.c_str(), _SH_DENYWR);
+#else
+  *fp = _fsopen((filename.c_str()), mode.c_str(), _SH_DENYWR);
+#endif
+  return *fp == nullptr;
+#else
+  *fp = fopen((filename.c_str()), mode.c_str());
+  return *fp == nullptr;
+#endif
+}
+
+// Return file size according to open FILE* object
+inline size_t filesize(FILE* f) {
+  if (f == nullptr) throw spdlog_ex("Failed getting file size. fd is null");
+#ifdef _WIN32
+  int fd = _fileno(f);
+#if _WIN64  // 64 bits
+  struct _stat64 st;
+  if (_fstat64(fd, &st) == 0) return st.st_size;
+
+#else  // windows 32 bits
+  struct _stat st;
+  if (_fstat(fd, &st) == 0) return st.st_size;
+#endif
+
+#else  // unix
+  int fd = fileno(f);
+// 64 bits(but not in osx, where fstat64 is deprecated)
+#if !defined(__APPLE__) && (defined(__x86_64__) || defined(__ppc64__))
+  struct stat64 st;
+  if (fstat64(fd, &st) == 0) return st.st_size;
+#else  // unix 32 bits or osx
+  struct stat st;
+  if (fstat(fd, &st) == 0) return st.st_size;
+#endif
+#endif
+  throw spdlog_ex("Failed getting file size from fd", errno);
+}
+
+// Return if file exists
+inline bool file_exists(const filename_t& filename) {
+#ifdef _WIN32
+#ifdef SPDLOG_WCHAR_FILENAMES
+  auto attribs = GetFileAttributesW(filename.c_str());
+#else
+  auto attribs = GetFileAttributesA(filename.c_str());
+#endif
+  return (attribs != INVALID_FILE_ATTRIBUTES &&
+          !(attribs & FILE_ATTRIBUTE_DIRECTORY));
+#else  // common linux/unix all have the stat system call
+  struct stat buffer;
+  return (stat(filename.c_str(), &buffer) == 0);
+#endif
+}
+
 }  // namespace os
 
 }  // namespace details

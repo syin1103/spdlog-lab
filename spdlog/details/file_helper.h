@@ -20,28 +20,73 @@ namespace details {
 
 class FileHelper {
  public:
-  explicit FileHelper(bool force_flush) {}
+  const int open_tries = 5;
+  const int open_interval = 10;
+
+  explicit FileHelper(bool force_flush)
+      : fd_(nullptr), force_flush_(force_flush) {}
 
   FileHelper(const FileHelper&) = delete;
   FileHelper& operator=(const FileHelper&) = delete;
 
-  ~FileHelper() {}
+  ~FileHelper() { Close(); }
 
-  void Open(const filename_t& filename, bool truncate = false) {}
+  void Open(const filename_t& filename, bool truncate = false) {
+    Close();
+    auto* mode = truncate ? SPDLOG_FILENAME_T("wb") : SPDLOG_FILENAME_T("ab");
+    filename_ = filename;
+    for (int tries = 0; tries < open_tries; tries++) {
+      if (!os::fopen_s(&fd_, filename, mode)) {
+        return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(open_interval));
+      }
+    }
+    throw spdlog_ex("Failed opening file " + os::filename_to_str(filename_) +
+                        " for writing",
+                    errno);
+  }
 
-  void Reopen(bool truncate) {}
+  void Reopen(bool truncate) {
+    if (filename_.empty()) {
+      throw spdlog_ex("Failed re opening file - was not opened before");
+    }
+    Open(filename_, truncate);
+  }
 
-  void Flush() {}
+  void Flush() { std::fflush(fd_); }
 
-  void Close() {}
+  void Close() {
+    if (fd_) {
+      std::fclose(fd_);
+      fd_ = nullptr;
+    }
+  }
 
-  void Write(const LogMsg& msg) {}
+  void Write(const LogMsg& msg) {
+    size_t msg_size = msg.formatted.size();
+    auto data = msg.formatted.data();
+    if (std::fwrite(data, 1, msg_size, fd_) != msg_size) {
+      throw spdlog_ex(
+          "Failed writing to file " + os::filename_to_str(filename_), errno);
+    }
+    if (force_flush_) {
+      std::fflush(fd_);
+    }
+  }
 
-  size_t Size() { return 0; }
+  size_t Size() {
+    if (!fd_) {
+      throw spdlog_ex("Cannot use size() on closed file " +
+                      os::filename_to_str(filename_));
+    }
+    return os::filesize(fd_);
+  }
 
   const filename_t& filename() const { return filename_; }
 
-  static bool FileExists(const filename_t& name) { return false; }
+  static bool FileExists(const filename_t& name) {
+    return os::file_exists(name);
+  }
 
  private:
   FILE* fd_;
