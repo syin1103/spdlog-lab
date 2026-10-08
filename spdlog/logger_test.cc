@@ -12,5 +12,6 @@
 #include "spdlog/sinks/dist_sink.h"
 #include "spdlog/sinks/file_sinks.h"
 #include "spdlog/sinks/ostream.sink.h"
+#include "spdlog/sinks/stdout_sink.h"
 
 TEST(LoggerTest, SimpleTest) { fmt::print("Hello {}\n", "world"); }
