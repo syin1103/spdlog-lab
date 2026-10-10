@@ -8,9 +8,15 @@
 
 #include <spdlog/details/log_msg.h>
 
+#include <memory>
 #include <string>
+#include <vector>
 
 namespace spdlog {
+
+namespace details {
+class FlagFormatter;
+}
 
 class Formatter {
  public:
@@ -29,6 +35,10 @@ class PatternFormatter : public Formatter {
 
  private:
   void CompilePattern(const std::string& pattern);
+  void HandleFlag(char flag);
+
+  const std::string pattern_;
+  std::vector<std::unique_ptr<details::FlagFormatter>> formatters_;
 };
 
 }  // namespace spdlog
