@@ -91,7 +91,26 @@ inline spdlog::PatternFormatter::PatternFormatter(const std::string& pattern) {
   CompilePattern(pattern);
 }
 
-inline void spdlog::PatternFormatter::Format(details::LogMsg& msg) {}
+inline void spdlog::PatternFormatter::Format(details::LogMsg& msg) {
+  try {
+#ifndef SPDLOG_NO_DATETIME
+    auto tm_time = details::os::localtime(log_clock::to_time_t(msg.time));
+#else
+    std::tm tm_time{};
+#endif
+
+    for (auto& f : formatters_) {
+      f->Format(msg, tm_time);
+    }
+
+    fmt::format_to(std::back_inserter(msg.formatted), "{}",
+                   std::string_view(details::os::eol, details::os::eol_size));
+
+  } catch (const fmt::format_error& e) {
+    throw spdlog_ex(fmt::format(
+        "formatting error while processing format string: {}", e.what()));
+  }
+}
 
 inline void spdlog::PatternFormatter::HandleFlag(char flag) {}
 

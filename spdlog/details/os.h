@@ -202,10 +202,20 @@ inline bool file_exists(const filename_t& filename) {
 #endif
 }
 
+// eol definition
+#if !defined(SPDLOG_EOL)
+#ifdef _WIN32
+#define SPDLOG_EOL "\r\n"
+#else
+#define SPDLOG_EOL "\n"
+#endif
+#endif
+
+constexpr static const char* eol = SPDLOG_EOL;
+constexpr static int eol_size = sizeof(SPDLOG_EOL) - 1;
+
 }  // namespace os
-
 }  // namespace details
-
 }  // namespace spdlog
 
 #endif  // SPDLOG_DETAILS_OS_H_
